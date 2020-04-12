@@ -1,7 +1,10 @@
+import os
+import time
 import requests
 import re
 import xlwt
-from collections import Counter
+import psutil
+import openpyxl
 
 
 def write_to_excel():
@@ -74,6 +77,7 @@ def write_to_excel():
     ws = wb.add_sheet('Отфильтрованные тиражы')
 
     wb.save('all_tirags.xls')
+    os.startfile('all_tirags.xls')
 
 
 def parse():
@@ -104,7 +108,6 @@ def parse():
                 date = re.search(r'\d{6}', one_tirag).group() + '; '
                 if last_tirag.startswith(date):
                     f.write(''.join(old_tirags + tuple(list_of_new_tirags[::-1])))
-                    write_to_excel()
                     print('Данные добавлены')
                     return
                 else:
@@ -115,10 +118,22 @@ def parse():
             request = requests.post('https://www.stoloto.ru/draw-results/keno/load', data=data)
             print("Страница № " + data.get('page'))
         else:
-            write_to_excel()
             f.write(''.join(tuple(list_of_new_tirags[::-1])))
             print("Все данные считаны")
 
 
+def sorting(amount):
+    list_of_tirags = []
+    with open('test.txt', 'r', encoding='utf-8') as f:
+        list_of_tirags = f.readlines()[:amount]
+    # xlwt.Workbook.
+    wb = openpyxl.load_workbook(filename='all_tirags.xlsx')
+    sheet = wb['Лист1']
+    sheet.cell(row=2, column=2).value = 'sex'
+    wb.save('all_tirags.xlsx')
+    return
+
+
 if __name__ == '__main__':
-    write_to_excel()
+    sorting(50)
+    pass

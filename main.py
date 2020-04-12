@@ -1,25 +1,42 @@
+import os
+import time
+
+import psutil
+from kivy.config import Config
+Config.set('graphics', 'width', 800)
+Config.set('graphics', 'height', 600)
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
-from kivy.uix.screenmanager import ScreenManager, Screen
+import threading
+import backend
 
 
 class MyApp(App):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.title = 'Столото'
+
     def build(self):
-        sm = ScreenManager()
-        screen = Screen()
         bl = BoxLayout(orientation="vertical")
-        bl.add_widget(Button(text="1",
-                             on_press=lambda x: sm.switch_to(screen1)))
-        bl.add_widget(Button(text="2",
-                             on_press=lambda x: sm.switch_to(screen2)))
-        screen.add_widget(bl)
-        screen1 = Screen(name="id1")
-        screen2 = Screen(name="id2")
-        sm.add_widget(screen)
-        sm.add_widget(screen1)
-        sm.add_widget(screen2)
-        return sm
+        bl.add_widget(Button(text='Открыть Excel',
+                             on_press=lambda x: os.startfile('all_tirags.xls')))
+        bl.add_widget(Button(text='Обновить',
+                             on_press=self.update))
+        for text_button in ('50', '100', '250', '500', '750', '1000'):
+            bl.add_widget(Button(text=text_button,
+                                 on_press=lambda instance: backend.sorting(int(instance.text))))
+        return bl
+
+    def update(self, instance):
+        warning = 'Перед обновлением закройте Excel файл. И нажмите ещё раз'
+        if instance.text != warning:
+            instance.text = warning
+            return
+        else:
+            instance.text = 'Данные обновленны.'
+        backend.parse()
+        backend.write_to_excel()
 
 
 if __name__ == '__main__':
