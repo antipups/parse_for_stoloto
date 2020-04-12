@@ -22,12 +22,11 @@ def parse():
         last_tirag = old_tirags[-1]
 
     list_of_new_tirags = list()
-
     with open('test.txt', 'w', encoding='utf-8') as f:
         while request.status_code == 200:
             request = request.text
-            for one_tirag in re.findall(r"<div class=\\\"draw_date\\\"[^⚲]*</span>", request):
-                date = 'Дата тиража - ' + re.search(r'\d\d\.\d\d\.\d{4} \d\d:\d\d:\d\d', one_tirag).group() + '; '
+            for one_tirag in re.findall(r"/keno/archive/[^⚲]*</span>", request):
+                date = re.search(r'\d{6}', one_tirag).group() + '; '
                 if last_tirag.startswith(date):
                     f.write(''.join(old_tirags + tuple(list_of_new_tirags[::-1])))
                     print('Данные добавлены')
@@ -40,7 +39,8 @@ def parse():
             request = requests.post('https://www.stoloto.ru/draw-results/keno/load', data=data)
             print("Страница № " + data.get('page'))
         else:
-            f.write('\n'.join(tuple(list_of_new_tirags[::-1])))
+
+            f.write(''.join(tuple(list_of_new_tirags[::-1])))
             print("Все данные считаны")
 
 
