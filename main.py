@@ -25,7 +25,7 @@ class MyApp(App):
                              on_press=self.update))
         for text_button in ('50', '100', '250', '500', '750', '1000'):
             bl.add_widget(Button(text=text_button,
-                                 on_press=lambda instance: backend.sorting(int(instance.text))))
+                                 on_press=lambda instance: backend.write_to_excel(int(instance.text))))
         return bl
 
     def update(self, instance):
@@ -36,7 +36,7 @@ class MyApp(App):
         else:
             instance.text = 'Данные обновленны.'
         backend.parse()
-        backend.write_to_excel()
+        backend.write_to_excel(0)
 
 
 if __name__ == '__main__':

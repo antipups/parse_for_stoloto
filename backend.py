@@ -4,10 +4,9 @@ import requests
 import re
 import xlwt
 import psutil
-import openpyxl
 
 
-def write_to_excel():
+def write_to_excel(amount):
     wb = xlwt.Workbook()
     ws = wb.add_sheet('Архив')
 
@@ -74,9 +73,9 @@ def write_to_excel():
     ws.write(1, 24, dict_of_summ.get(810))
     ws.write(1, 25, dict_of_summ.get(820))
 
-    ws = wb.add_sheet('Отфильтрованные тиражы')
-
     wb.save('all_tirags.xls')
+    if amount != 0:
+        sorting(amount)
     os.startfile('all_tirags.xls')
 
 
@@ -122,18 +121,133 @@ def parse():
             print("Все данные считаны")
 
 
+def xls_bg_colour(colour):  # для покраски
+
+    """ Colour index
+    8 through 63. 0 = Black, 1 = White, 2 = Red, 3 = Green, 4 = Blue, 5 = Yellow, 6 = Magenta,
+    7 = Cyan, 16 = Maroon, 17 = Dark Green, 18 = Dark Blue, 19 = Dark Yellow , almost brown),
+    20 = Dark Magenta, 21 = Teal, 22 = Light Gray, 23 = Dark Gray, """
+
+    dict_colour = {"green": 17,
+                   "red": 2,
+                   "white": 1,
+                   "yellow": 5,
+                   "gray": 22,
+                   "blue": 4,
+                   "magenta": 6,
+                   "cyan": 7, }
+    bg_colour = xlwt.XFStyle()
+    p = xlwt.Pattern()
+    p.pattern = xlwt.Pattern.SOLID_PATTERN
+    p.pattern_fore_colour = dict_colour[colour]
+    bg_colour.pattern = p
+    return bg_colour
+
+
 def sorting(amount):
-    list_of_tirags = []
+    wb = xlwt.Workbook()
+    ws = wb.add_sheet('Тиражы')
+    list_of_tirags = list()
     with open('test.txt', 'r', encoding='utf-8') as f:
         list_of_tirags = f.readlines()[:amount]
-    # xlwt.Workbook.
-    wb = openpyxl.load_workbook(filename='all_tirags.xlsx')
-    sheet = wb['Лист1']
-    sheet.cell(row=2, column=2).value = 'sex'
-    wb.save('all_tirags.xlsx')
-    return
+    ws = wb.add_sheet('Отфильтрованные тиражы')
+
+    title = ('Тираж',) + tuple(x for x in range(1, 21)) + ('Сумма очков', 'MAX', 'MIN', 'Серия MAX', 'Серия MIN', 'Кол-во серий < 800', 'Кол-во серий < 810', 'Кол-во серий < 820')
+
+    for i in enumerate(title):
+        ws.write(0, i[0], i[1])
+
+    # для подсчёта серий
+    one = 78
+    two = 3
+    three = 800
+    four = 810
+    fifth = 820
+
+    dict_of_summ = {one: 0,
+                    two: 0,
+                    three: 0,
+                    four: 0,
+                    fifth: 0, }
+
+    max1, max2, max3 = 0, 0, 0
+    max4, max5 = 0, 0
+
+    for index, one_tirage in enumerate(list_of_tirags):
+        ws.write(index + 1, 0, int(one_tirage[:one_tirage.find('; ')]))
+        one_tirage = one_tirage[one_tirage.find('; ') + 2:].split(', ')
+        one_tirage[-1] = one_tirage[-1][:-1]
+        one_tirage = tuple(int(x) for x in one_tirage)
+
+        max_ = max(one_tirage)
+        min_ = min(one_tirage)
+        for k in enumerate(one_tirage):
+            if k[1] == max_:
+                ws.write(index + 1, k[0] + 1, k[1], xls_bg_colour('green'))
+            elif k[1] == min_:
+                ws.write(index + 1, k[0] + 1, k[1], xls_bg_colour('yellow'))
+            else:
+                ws.write(index + 1, k[0] + 1, k[1])
+        else:
+            ws.write(index + 1, 22, max_, xls_bg_colour('green') if max_ > 78 else xls_bg_colour('white'))
+            ws.write(index + 1, 23, min_, xls_bg_colour('yellow') if min_ < 3 else xls_bg_colour('white'))
+
+            if max_ > one:
+                if max4 >= dict_of_summ[one]:
+                    max4 += 1
+                    dict_of_summ[one] = max4
+                else:
+                    max4 += 1
+            else:
+                max4 = 0
+
+            if min_ < two:
+                if max5 >= dict_of_summ[two]:
+                    max5 += 1
+                    dict_of_summ[two] = max5
+                else:
+                    max5 += 1
+            else:
+                max5 = 0
+
+            one_summ = sum(one_tirage)
+            ws.write(index + 1, 21, one_summ)
+
+            # серия
+            if one_summ < three:
+                if max1 >= dict_of_summ[three]:
+                    max1 += 1
+                    dict_of_summ[three] = max1
+                else:
+                    max1 += 1
+            else:
+                max1 = 0
+
+            if one_summ < four:
+                if max2 >= dict_of_summ[four]:
+                    max2 += 1
+                    dict_of_summ[four] = max2
+                else:
+                    max2 += 1
+            else:
+                max2 = 0
+
+            if one_summ < fifth:
+                if max3 >= dict_of_summ[fifth]:
+                    max3 += 1
+                    dict_of_summ[fifth] = max3
+                else:
+                    max3 += 1
+            else:
+                max3 = 0
+
+    ws.write(1, 24, dict_of_summ.get(one), xls_bg_colour('cyan'))
+    ws.write(1, 25, dict_of_summ.get(two), xls_bg_colour('cyan'))
+    ws.write(1, 26, dict_of_summ.get(800), xls_bg_colour('green'))
+    ws.write(1, 27, dict_of_summ.get(810), xls_bg_colour('green'))
+    ws.write(1, 28, dict_of_summ.get(820), xls_bg_colour('green'))
+    wb.save('filtred.xls')
 
 
 if __name__ == '__main__':
-    sorting(50)
-    pass
+    write_to_excel(50)
