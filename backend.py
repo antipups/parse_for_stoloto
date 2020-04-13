@@ -1,14 +1,19 @@
 import os
-import time
+import openpyxl
 import requests
 import re
-import xlwt
-import psutil
+from openpyxl.styles import PatternFill
 
 
-def write_to_excel(amount):
-    wb = xlwt.Workbook()
-    ws = wb.add_sheet('Архив')
+def write_to_excel():
+    try:
+        wb = openpyxl.load_workbook('excel.xlsx')
+    except:
+        wb = openpyxl.Workbook()
+        del wb['Sheet']
+    if 'Архив' not in wb.sheetnames:
+        wb.create_sheet('Архив')
+    ws = wb['Архив']
 
     # для подсчёта серий
     three = 800
@@ -27,19 +32,19 @@ def write_to_excel(amount):
     title = ('Тираж',) + tuple(x for x in range(1, 21)) + ('Сумма очков', '', 'Кол-во серий < 800', 'Кол-во серий < 810', 'Кол-во серий < 820')
 
     for i in enumerate(title):
-        ws.write(0, i[0], i[1])
+        ws.cell(row=1, column=i[0] + 1).value = i[1]
 
     for index, one_tirage in enumerate(old_tirags[::-1]):
-        ws.write(index + 1, 0, int(one_tirage[:one_tirage.find('; ')]))
+        ws.cell(row=index + 2, column=1).value = int(one_tirage[:one_tirage.find('; ')])
         one_tirage = one_tirage[one_tirage.find('; ') + 2:].split(', ')
         one_tirage[-1] = one_tirage[-1][:-1]
         one_tirage = tuple(int(x) for x in one_tirage)
 
         for k in enumerate(one_tirage):
-            ws.write(index + 1, k[0] + 1, k[1])
+            ws.cell(row=index + 2, column=k[0] + 2).value = k[1]
         else:
             one_summ = sum(one_tirage)
-            ws.write(index + 1, 21, one_summ)
+            ws.cell(row=index + 2, column=22).value = one_summ
 
             # серия
             if one_summ < three:
@@ -69,14 +74,18 @@ def write_to_excel(amount):
             else:
                 max3 = 0
 
-    ws.write(1, 23, dict_of_summ.get(800))
-    ws.write(1, 24, dict_of_summ.get(810))
-    ws.write(1, 25, dict_of_summ.get(820))
+    ws.cell(row=2, column=24).value = dict_of_summ.get(800)
+    ws.cell(row=2, column=25).value = dict_of_summ.get(810)
+    ws.cell(row=2, column=26).value = dict_of_summ.get(820)
 
-    wb.save('all_tirags.xls')
-    if amount != 0:
-        sorting(amount)
-    os.startfile('all_tirags.xls')
+    try:
+        wb.save('excel.xlsx')
+    except:
+        wb.close()
+        return 'Обновление не удалось, закройте файл и повторите.'
+    else:
+        wb.close()
+        return True
 
 
 def parse():
@@ -88,11 +97,13 @@ def parse():
         'from': '10.10.2015',
         'to': '12.04.2020',
     }
-    request = requests.post('https://www.stoloto.ru/draw-results/keno/load', data=data)
+    first_url , second_url = 'https://www.stoloto.ru/keno/archive', 'https://www.stoloto.ru/draw-results/keno/load'
+    request = requests.post(first_url)
+    current_url = first_url
 
     old_tirags = list()
     with open('test.txt', 'r', encoding='utf-8') as f:
-        old_tirags = tuple(f.readlines())
+        old_tirags = tuple(f.readlines()[:-5])
 
     last_tirag = str()
     if len(old_tirags) > 1:
@@ -101,6 +112,7 @@ def parse():
     list_of_new_tirags = list()
 
     with open('test.txt', 'w', encoding='utf-8') as f:
+
         while request.status_code == 200:
             request = request.text
             for one_tirag in re.findall(r"/keno/archive/[^⚲]*</span>", request):
@@ -110,52 +122,40 @@ def parse():
                     print('Данные добавлены')
                     return
                 else:
-                    one_tirag = one_tirag[one_tirag.find('<div class=\\"container cleared\\">'):]
-                    bals = re.findall(r'\d\d?\d?', one_tirag)
+                    if current_url == first_url:
+                        one_tirag = one_tirag[one_tirag.find('<div class="container cleared">'):]
+                    else:
+                        one_tirag = one_tirag[one_tirag.find('<div class=\\"container cleared\\">'):]
+                    bals = re.findall(r'\d\d?', one_tirag)
                     list_of_new_tirags.append(date + ', '.join(bals) + '\n')
-            data['page'] = str(int(data.get('page')) + 1)
-            request = requests.post('https://www.stoloto.ru/draw-results/keno/load', data=data)
+            if current_url == first_url:
+                current_url = second_url
+            else:
+                data['page'] = str(int(data.get('page')) + 1)
+            request = requests.post(current_url, data=data)
             print("Страница № " + data.get('page'))
         else:
             f.write(''.join(tuple(list_of_new_tirags[::-1])))
             print("Все данные считаны")
 
 
-def xls_bg_colour(colour):  # для покраски
-
-    """ Colour index
-    8 through 63. 0 = Black, 1 = White, 2 = Red, 3 = Green, 4 = Blue, 5 = Yellow, 6 = Magenta,
-    7 = Cyan, 16 = Maroon, 17 = Dark Green, 18 = Dark Blue, 19 = Dark Yellow , almost brown),
-    20 = Dark Magenta, 21 = Teal, 22 = Light Gray, 23 = Dark Gray, """
-
-    dict_colour = {"green": 17,
-                   "red": 2,
-                   "white": 1,
-                   "yellow": 5,
-                   "gray": 22,
-                   "blue": 4,
-                   "magenta": 6,
-                   "cyan": 7, }
-    bg_colour = xlwt.XFStyle()
-    p = xlwt.Pattern()
-    p.pattern = xlwt.Pattern.SOLID_PATTERN
-    p.pattern_fore_colour = dict_colour[colour]
-    bg_colour.pattern = p
-    return bg_colour
-
-
 def sorting(amount):
-    wb = xlwt.Workbook()
-    ws = wb.add_sheet('Тиражы')
+    wb = openpyxl.load_workbook(filename='excel.xlsx')
     list_of_tirags = list()
     with open('test.txt', 'r', encoding='utf-8') as f:
-        list_of_tirags = f.readlines()[:amount]
-    ws = wb.add_sheet('Отфильтрованные тиражы')
+        list_of_tirags = f.readlines()[::-1][:amount]
+
+    if 'Отфильтрованные записи' not in wb.sheetnames:
+        wb.create_sheet('Отфильтрованные записи')
+    else:
+        del wb['Отфильтрованные записи']
+        wb.create_sheet('Отфильтрованные записи')
+    ws = wb['Отфильтрованные записи']
 
     title = ('Тираж',) + tuple(x for x in range(1, 21)) + ('Сумма очков', 'MAX', 'MIN', 'Серия MAX', 'Серия MIN', 'Кол-во серий < 800', 'Кол-во серий < 810', 'Кол-во серий < 820')
 
     for i in enumerate(title):
-        ws.write(0, i[0], i[1])
+        ws.cell(row=1, column=i[0] + 1).value = i[1]
 
     # для подсчёта серий
     one = 78
@@ -174,7 +174,7 @@ def sorting(amount):
     max4, max5 = 0, 0
 
     for index, one_tirage in enumerate(list_of_tirags):
-        ws.write(index + 1, 0, int(one_tirage[:one_tirage.find('; ')]))
+        ws.cell(row=index + 2, column=1).value = int(one_tirage[:one_tirage.find('; ')])
         one_tirage = one_tirage[one_tirage.find('; ') + 2:].split(', ')
         one_tirage[-1] = one_tirage[-1][:-1]
         one_tirage = tuple(int(x) for x in one_tirage)
@@ -182,15 +182,21 @@ def sorting(amount):
         max_ = max(one_tirage)
         min_ = min(one_tirage)
         for k in enumerate(one_tirage):
+            ws.cell(row=index + 2, column=k[0] + 2).value = k[1]
             if k[1] == max_:
-                ws.write(index + 1, k[0] + 1, k[1], xls_bg_colour('green'))
+                color = '92D050'
+                ws.cell(row=index + 2, column=k[0] + 2).fill = PatternFill(fill_type='solid', start_color=color, end_color=color)
             elif k[1] == min_:
-                ws.write(index + 1, k[0] + 1, k[1], xls_bg_colour('yellow'))
-            else:
-                ws.write(index + 1, k[0] + 1, k[1])
+                color = 'FFD966'
+                ws.cell(row=index + 2, column=k[0] + 2).fill = PatternFill(fill_type='solid', start_color=color, end_color=color)
         else:
-            ws.write(index + 1, 22, max_, xls_bg_colour('green') if max_ > 78 else xls_bg_colour('white'))
-            ws.write(index + 1, 23, min_, xls_bg_colour('yellow') if min_ < 3 else xls_bg_colour('white'))
+            ws.cell(row=index + 2, column=23).value = max_
+            color = '92D050' if max_ > 78 else 'FFFFFF'
+            ws.cell(row=index + 2, column=23).fill = PatternFill(fill_type='solid', start_color=color, end_color=color)
+            ws.cell(row=index + 2, column=24).value = min_
+            color = 'FFD966' if min_ < 3 else 'FFFFFF'
+            ws.cell(row=index + 2, column=24).fill = PatternFill(fill_type='solid', start_color=color, end_color=color)
+
 
             if max_ > one:
                 if max4 >= dict_of_summ[one]:
@@ -211,7 +217,7 @@ def sorting(amount):
                 max5 = 0
 
             one_summ = sum(one_tirage)
-            ws.write(index + 1, 21, one_summ)
+            ws.cell(row=index + 2, column=22).value = one_summ
 
             # серия
             if one_summ < three:
@@ -241,13 +247,29 @@ def sorting(amount):
             else:
                 max3 = 0
 
-    ws.write(1, 24, dict_of_summ.get(one), xls_bg_colour('cyan'))
-    ws.write(1, 25, dict_of_summ.get(two), xls_bg_colour('cyan'))
-    ws.write(1, 26, dict_of_summ.get(800), xls_bg_colour('green'))
-    ws.write(1, 27, dict_of_summ.get(810), xls_bg_colour('green'))
-    ws.write(1, 28, dict_of_summ.get(820), xls_bg_colour('green'))
-    wb.save('filtred.xls')
+    ws.cell(row=2, column=25).value = dict_of_summ.get(one)
+    ws.cell(row=2, column=25).fill = PatternFill(fill_type='solid', start_color='9BC2E6', end_color='9BC2E6')
+    ws.cell(row=2, column=26).value = dict_of_summ.get(two)
+    ws.cell(row=2, column=26).fill = PatternFill(fill_type='solid', start_color='9BC2E6', end_color='9BC2E6')
+    ws.cell(row=2, column=27).value = dict_of_summ.get(three)
+    ws.cell(row=2, column=27).fill = PatternFill(fill_type='solid', start_color='92D050', end_color='92D050')
+    ws.cell(row=2, column=28).value = dict_of_summ.get(four)
+    ws.cell(row=2, column=28).fill = PatternFill(fill_type='solid', start_color='92D050', end_color='92D050')
+    ws.cell(row=2, column=29).value = dict_of_summ.get(fifth)
+    ws.cell(row=2, column=29).fill = PatternFill(fill_type='solid', start_color='92D050', end_color='92D050')
+    try:
+        wb.save('excel.xlsx')
+    except:
+        wb.close()
+        return 'Сортировка не удалась, закройте файл и повторите попытку.'
+    else:
+        wb.close()
+        os.startfile('excel.xlsx')
+        return True
 
 
 if __name__ == '__main__':
-    write_to_excel(50)
+    # sorting(1000)
+    write_to_excel()
+    # parse()
+    pass

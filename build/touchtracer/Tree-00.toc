@@ -1,6 +1,6 @@
 ('C:\\Users\\kurku\\PycharmProjects\\test\\build\\touchtracer\\setuptools-40.8.0-py3.7.egg',
  None,
- {'*.pyw', '*.cp37-win_amd64.pyd', 'EGG-INFO', '*.pyc', '*.py', '*.pyd'},
+ {'*.pyd', '*.py', '*.cp37-win_amd64.pyd', '*.pyc', 'EGG-INFO', '*.pyw'},
  'DATA',
  [('setuptools\\cli-32.exe',
    'C:\\Users\\kurku\\PycharmProjects\\test\\build\\touchtracer\\setuptools-40.8.0-py3.7.egg\\setuptools\\cli-32.exe',
